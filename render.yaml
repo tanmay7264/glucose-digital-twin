@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: glucose-digital-twin
+    runtime: docker
+    plan: free
+    healthCheckPath: /

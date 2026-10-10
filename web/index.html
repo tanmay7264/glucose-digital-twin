@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>T2D Glucose Digital Twin – prototype</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1c2430;--mut:#6b7686;--line:#e3e7ee;--teal:#0f8b8d;--org:#e07a1f;--red:#c9372c;--grn:#2e9e5b;--blu:#3b6fd4}
+*{box-sizing:border-box}body{margin:0;font:14px/1.4 -apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{display:flex;align-items:center;gap:16px;padding:10px 20px;background:#fff;border-bottom:1px solid var(--line);flex-wrap:wrap}
+h1{font-size:16px;margin:0}.badge{background:#fff3e6;color:#9a4d00;border:1px solid #f3cfa3;padding:3px 8px;border-radius:12px;font-size:12px}
+nav button{border:0;background:none;padding:8px 12px;font:inherit;cursor:pointer;border-bottom:2px solid transparent;color:var(--mut)}nav button.on{color:var(--ink);border-color:var(--teal);font-weight:600}
+main{display:grid;grid-template-columns:230px 1fr;gap:14px;padding:14px 20px;max-width:1500px;margin:auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}.card h2{font-size:13px;margin:0 0 8px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut)}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}.c12{grid-column:span 12}.c8{grid-column:span 8}.c7{grid-column:span 7}.c6{grid-column:span 6}.c5{grid-column:span 5}.c4{grid-column:span 4}
+@media(max-width:1100px){main{grid-template-columns:1fr}.c8,.c7,.c6,.c5,.c4{grid-column:span 12}}
+.pt{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:8px;cursor:pointer;border:1px solid transparent}.pt:hover{background:#f1f4f8}.pt.on{background:#e8f4f4;border-color:#b9dcdc}
+.pill{font-size:11px;padding:2px 7px;border-radius:10px;color:#fff;font-weight:600}.hi{background:var(--red)}.md{background:var(--org)}.lo{background:var(--grn)}
+canvas{width:100%;display:block}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.mut{color:var(--mut);font-size:12px}
+.big{font-size:34px;font-weight:700;line-height:1}table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:5px 8px;text-align:right;border-bottom:1px solid var(--line)}th:first-child,td:first-child{text-align:left}th{color:var(--mut);font-weight:600}
+select,button.btn,input[type=range]{font:inherit}select{padding:4px;border:1px solid var(--line);border-radius:6px;max-width:100%}button.btn{padding:5px 12px;border:1px solid var(--teal);background:var(--teal);color:#fff;border-radius:6px;cursor:pointer}
+.bar{height:10px;border-radius:5px;background:#e9edf3;position:relative;overflow:hidden}.bar>i{position:absolute;top:0;bottom:0}
+.alert{border-left:3px solid var(--org);padding:4px 8px;margin:4px 0;background:#fff8f0;font-size:12px}.alert.ok{border-color:var(--grn);background:#f2faf5}.alert.bad{border-color:var(--red);background:#fdf3f2}
+.note{background:#fff8e6;border:1px solid #f0dc9a;border-radius:8px;padding:8px 10px;font-size:12.5px;margin:8px 0}
+.hide{display:none}.legend span{display:inline-block;margin-right:12px;font-size:12px;color:var(--mut)}.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+</style></head><body>
+<header><h1>Glucose Digital Twin <span class="mut">· T2D / prediabetes post-meal excursions</span></h1><span class="badge" id="dn">loading…</span>
+<nav style="margin-left:auto"><button class="on" data-t="clin">Clinician view</button><button data-t="val">Validation</button><button data-t="why">Twin vs classifier</button></nav></header>
+<main id="clin"><aside class="card"><h2>Triage <span class="mut" style="text-transform:none">(by 2-h risk now)</span></h2><div id="tri"></div></aside>
+<section><div class="card" style="margin-bottom:14px"><div class="row"><b id="ptn"></b><span class="mut" id="pti"></span><span style="flex:1"></span>
+<button class="btn" id="play">▶ Replay</button><input type="range" id="sl" style="flex:1;min-width:200px"><b id="clk"></b><a id="fhir" class="mut" target="_blank">FHIR bundle</a></div></div>
+<div class="grid">
+<div class="card c8"><h2>Next 2 hours</h2><div class="legend"><span><i style="background:#1c2430"></i>CGM</span><span><i style="background:var(--teal)"></i>twin estimate + forecast (90% band)</span><span><i style="background:#c9d0da"></i>what actually happened (replay reveal)</span></div><canvas id="cF" height="250"></canvas></div>
+<div class="card c4"><h2>Excursion risk</h2><div class="row"><div><div class="big" id="pr"></div><div class="mut">P(glucose &gt;180 within 2 h)</div></div><div id="albadge"></div></div>
+<h2 style="margin-top:12px">Drivers of 60-min forecast</h2><canvas id="cD" height="110"></canvas><div class="mut" id="cobx"></div>
+<h2 style="margin-top:10px">Recent alerts</h2><div id="als"></div></div>
+<div class="card c4"><h2>Physical twin <label style="float:right;text-transform:none;letter-spacing:0;font-weight:400"><input type="checkbox" id="xr"> X-ray (organs)</label></h2><div id="hm" style="height:340px;position:relative"></div><div id="act" class="mut" style="margin-top:6px"></div><div class="mut" style="font-size:11px">Drag to rotate. CGM patch + floor ring = glucose zone. X-ray: stomach glow = carbs on board · pancreas pulse = insulin action · particles = blood glucose / absorbed carbs.</div></div>
+<div class="card c8"><h2>What-if (re-simulated through the ODE, parameter-posterior bands)</h2>
+<div class="row"><label>Plan A <select id="mA"></select></label><label>Plan B <select id="mB"></select></label>
+<label><input type="checkbox" id="wk" checked> 15-min walk +30 min (B)</label><button class="btn" id="go">Simulate</button></div>
+<canvas id="cW" height="230"></canvas><div id="wt"></div><div class="mut">Mechanistic only (no ML correction). Walk effect uses an assumed constant (KEX) – the least certain part of the model.</div></div>
+<div class="card c4"><h2>Twin state (per-patient calibration)</h2><div id="ts"></div><canvas id="cT" height="90"></canvas><h2 style="margin-top:10px">Drift monitor / recalibration</h2><div id="ev"></div></div>
+<div class="card c8" style="grid-column:span 5"><h2>AGP – 10-day ambulatory glucose profile</h2><canvas id="cA" height="220"></canvas></div>
+<div class="card c12" style="grid-column:span 3"><h2>Time in ranges (targets: TIR ≥70%, TAR ≤25%, TBR ≤4%)</h2><div id="tir"></div></div>
+</div></section></main>
+<main id="val" style="display:none"></main><main id="why" style="display:none"></main>
+<script type="module">
+const el=document.getElementById('hm');
+function fallback2D(why){ // flat figure driven by the same state, used if WebGL/three.js cannot load
+  el.innerHTML='<canvas style="width:100%;height:100%"></canvas><div class="mut" style="position:absolute;left:0;top:0;font-size:11px">2D view ('+why+')</div>';
+  const cv=el.firstChild,S={g:120,cob:0,x:0,steps:0,risk:0};
+  const Z=g=>g<70?'#3b6fd4':g<=180?'#2e9e5b':g<=250?'#e07a1f':'#c9372c';
+  (function loop(t){const r=devicePixelRatio||1,w=el.clientWidth,h=el.clientHeight;cv.width=w*r;cv.height=h*r;const c=cv.getContext('2d');c.scale(r,r);
+   const s=h/230,ph=t/1000*(3+5*Math.min(S.steps/100,1)),sw=S.steps>25?Math.sin(ph):0;c.translate(w/2,8);c.scale(s,s);c.lineCap='round';c.lineWidth=14;c.strokeStyle=Z(S.g)+'88';
+   const L=(x1,y1,x2,y2)=>{c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.stroke()};
+   c.beginPath();c.arc(0,16,13,0,7);c.stroke();L(0,34,0,100);L(-14,40,-24,70+sw*10);L(14,40,24,70-sw*10);L(-6,100,-8+sw*18,150);L(6,100,8-sw*18,150);L(-8+sw*18,150,-8+sw*22,195);L(8-sw*18,150,8-sw*22,195);
+   const o=(x,y,r,col,a)=>{c.fillStyle=col;c.globalAlpha=a;c.beginPath();c.arc(x,y,r,0,7);c.fill();c.globalAlpha=1};
+   o(8,60,8+S.cob/12,'#e07a1f',.4+Math.min(S.cob/70,.6));o(0,76,5,'#0f8b8d',.4+Math.min(S.x/15,.6));o(7,48,5*(1+.15*Math.sin(t/180)),'#c9372c',.9);o(-9,54,8,'#8c2f2f',.7);
+   c.resetTransform();requestAnimationFrame(loop)})(0);
+  return{update:s=>Object.assign(S,s)};
+}
+try{if(location.search.includes('no3d'))throw new Error('forced 2D via ?no3d');const m=await import('./human.js');window.Human=m.initHuman(el)}
+catch(e){console.error('3D body failed',e);window.Human=fallback2D(String(e.message||e).slice(0,80))}
+document.getElementById('xr').onchange=e=>window.Human&&window.Human.setXray&&window.Human.setXray(e.target.checked);
+</script>
+<script>
+const $=id=>document.getElementById(id),C={ink:'#1c2430',teal:'#0f8b8d',org:'#e07a1f',red:'#c9372c',grn:'#2e9e5b',blu:'#3b6fd4',g:'#c9d0da'};
+let D,pid,t,timer,wiT;const HS=[0,3,6,9,12,18,24];
+const P=()=>D.patients.find(p=>p.id===pid);
+function cv(el,h){const r=devicePixelRatio||1,w=el.clientWidth;el.width=w*r;el.height=h*r;el.style.height=h+'px';const c=el.getContext('2d');c.scale(r,r);c.font='11px sans-serif';return{c,w,h}}
+function frame(o,x0,x1,y0,y1,xt,yt,xl){const{c,w,h}=o,L=36,R=8,T=6,B=20;const X=v=>L+(v-x0)/(x1-x0)*(w-L-R),Y=v=>T+(1-(v-y0)/(y1-y0))*(h-T-B);
+c.strokeStyle='#e3e7ee';c.fillStyle='#6b7686';c.lineWidth=1;c.textAlign='right';yt.forEach(v=>{c.beginPath();c.moveTo(L,Y(v));c.lineTo(w-R,Y(v));c.stroke();c.fillText(v,L-4,Y(v)+3)});
+c.textAlign='center';xt.forEach(v=>c.fillText(xl?xl(v):v,X(v),h-6));return{X,Y,L,R,T,B,w,h,c}}
+function clock(i){const m=i*5,d=Math.floor(m/1440)+1,hh=Math.floor(m%1440/60),mm=m%60;return`D${d} ${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`}
+function interp(xs,ys,x){for(let k=1;k<xs.length;k++)if(x<=xs[k]){const f=(x-xs[k-1])/(xs[k]-xs[k-1]);return ys[k-1]+f*(ys[k]-ys[k-1])}return ys[ys.length-1]}
+function fc(p,i){const ys=HS.map(h=>h?p.fh[h][i]:p.gf[i]);return h=>interp(HS,ys,h)}
+function ver(p,i){let v=p.versions[0];for(const x of p.versions)if(x.i<=i)v=x;return v}
+function draw(){const p=P();if(!p)return;$('clk').textContent=clock(t);
+// forecast
+const o=cv($('cF'),250),f=frame(o,-360,120,40,Math.max(300,...p.cgm.slice(t-72,t+25).filter(v=>v)),[-360,-300,-240,-180,-120,-60,0,60,120],[70,120,180,240,300],v=>v==0?'now':v/60+'h'),c=f.c;
+c.fillStyle='rgba(46,158,91,.08)';c.fillRect(f.L,f.Y(180),f.w-f.L-f.R,f.Y(70)-f.Y(180));c.strokeStyle=C.red;c.setLineDash([4,4]);c.beginPath();c.moveTo(f.L,f.Y(180));c.lineTo(f.w-f.R,f.Y(180));c.stroke();c.setLineDash([]);
+for(let k=0;k<=24;k++){const v=p.cgm[t+k];if(v!=null){c.fillStyle=C.g;c.beginPath();c.arc(f.X(k*5),f.Y(v),2.5,0,7);c.fill()}}
+const F=fc(p,t);c.fillStyle='rgba(15,139,141,.18)';c.beginPath();for(let k=0;k<=24;k++){c.lineTo(f.X(k*5),f.Y(F(k)+1.64*(k?p.sig[k-1]:4)))}for(let k=24;k>=0;k--){c.lineTo(f.X(k*5),f.Y(F(k)-1.64*(k?p.sig[k-1]:4)))}c.fill();
+c.strokeStyle=C.teal;c.lineWidth=2;c.beginPath();for(let k=-72;k<=0;k++)c.lineTo(f.X(k*5),f.Y(p.gf[t+k]));for(let k=1;k<=24;k++)c.lineTo(f.X(k*5),f.Y(F(k)));c.stroke();c.lineWidth=1;
+for(let k=-72;k<=0;k++){const v=p.cgm[t+k];if(v!=null){c.fillStyle=C.ink;c.beginPath();c.arc(f.X(k*5),f.Y(v),2,0,7);c.fill()}}
+p.meals.forEach(m=>{const k=m[0]-t;if(k>=-72&&k<=24){c.fillStyle=C.org;c.fillRect(f.X(k*5)-1,f.T,2,f.h-f.T-f.B);c.fillText(m[1]+'g',f.X(k*5)+14,f.T+10)}});
+p.alerts.forEach(a=>{const k=a-t;if(k>=-72&&k<=0){c.fillStyle=C.red;c.fillText('▲ alert',f.X(k*5),f.h-24)}});
+// physical twin
+if(window.Human){const hr=(t*5/60)%24,st=p.steps[t]||0;let lm=-1;for(const m of p.meals){if(m[0]<=t)lm=m[0];else break}
+window.Human.update({g:p.gf[t],cob:p.cob[t],x:p.x[t],risk:p.p[t],steps:st,hour:hr,meal:lm,alert:p.p[t]>=p.thr&&p.gf[t]<=180});
+const sl=(hr>=23||hr<6)&&st<5,eat=lm>=0&&t-lm<=6;$('act').innerHTML=`<b>${sl?'😴 Sleeping':eat?'🍽 Eating '+(p.meals.find(m=>m[0]===lm)||[])[2]:st>25?'🚶 Walking ('+Math.round(st)+' steps/min)':'🪑 Resting'}</b> · glucose ${Math.round(p.gf[t])} mg/dL · carbs on board ${Math.round(p.cob[t])} g · insulin action ${p.x[t]}`}
+// risk
+const pr=p.p[t],al=pr>=p.thr&&p.gf[t]<=180;$('pr').textContent=Math.round(pr*100)+'%';$('pr').style.color=pr>.6?C.red:pr>.3?C.org:C.grn;
+$('albadge').innerHTML=al?'<span class="pill hi">ALERT</span><div class="mut">≥ threshold '+p.thr+'</div>':p.gf[t]>180?'<span class="pill md">already &gt;180</span><div class="mut">alerts fire only from below</div>':'<span class="pill lo">no alert</span><div class="mut">threshold '+p.thr+'</div>';
+// drivers
+const d=cv($('cD'),110),dv=[['Meals on board',p.drv.meal[t],C.org],['Insulin action',p.drv.ins[t],C.blu],['ML correction',p.drv.ml[t],'#8a6fd1']],dc=d.c,mx=Math.max(30,...dv.map(x=>Math.abs(x[1]||0)))*1.3,mid=d.w*.55;
+dv.forEach((x,k)=>{const y=8+k*34,w=(x[1]||0)/mx*(d.w*.4);dc.fillStyle=x[2];dc.fillRect(w>=0?mid:mid+w,y+10,Math.abs(w),14);dc.fillStyle=C.ink;dc.textAlign='left';dc.fillText(x[0],0,y+20);dc.textAlign=w>=0?'left':'right';dc.fillText((x[1]>0?'+':'')+Math.round(x[1])+' mg/dL',w>=0?mid+w+4:mid+w-4,y+8)});
+$('cobx').textContent=`Carbs still to absorb ${Math.round(p.cob[t])} g · insulin action ${p.x[t]}×10⁻³/min`;
+// alerts feed
+const rec=p.alerts.filter(a=>a<=t).slice(-4).reverse();$('als').innerHTML=rec.length?rec.map(a=>{let hit=null;for(let k=1;k<=24;k++)if((p.cgm[a+k]||0)>180){hit=k*5;break}const done=t-a>=24;const cl=hit?'ok':done?'bad':'';return`<div class="alert ${cl}">${clock(a)} – risk ${Math.round(p.p[a]*100)}% · ${hit?'excursion followed after '+hit+' min (lead time)':done?'no excursion within 2 h (false alert)':'pending…'}</div>`}).join(''):'<div class="mut">none yet</div>';
+// state
+const v=ver(p,t),v0=p.versions[0],nm=['Insulin sensitivity SI (10⁻⁴/min per mg/dL)','Glucose effectiveness SG (10⁻²/min)','Meal absorption k (10⁻²/min)'],sc=[1e4,1e2,1e2];
+$('ts').innerHTML='<table><tr><th></th><th>now</th><th>95% CI</th><th>vs start</th></tr>'+[0,1,2].map(k=>{const m=v.th[k],ci=[m*Math.exp(-1.96*v.sd[k]),m*Math.exp(1.96*v.sd[k])],r=m/v0.th[k];return`<tr><td>${nm[k]}</td><td><b>${(m*sc[k]).toFixed(2)}</b></td><td>${(ci[0]*sc[k]).toFixed(2)}–${(ci[1]*sc[k]).toFixed(2)}</td><td>${r<.85?'▼':r>1.18?'▲':'≈'} ${r.toFixed(2)}×</td></tr>`}).join('')+'</table><div class="mut">Prior: HbA1c '+(p.static.hba1c||'n/a')+'% → SI (hypothesis-driven; not fitted on Indian data). Fasting baseline Gb '+p.gb+'.</div>';
+const ts=cv($('cT'),90),tc=ts.c;[0,1,2].forEach(k=>{const y=14+k*26,sd=1.96*v.sd[k],lo=Math.max(-1.2,-sd),hi=Math.min(1.2,sd),x=a=>10+(a+1.2)/2.4*(ts.w-20);tc.fillStyle='#e9edf3';tc.fillRect(x(-1.2),y,x(1.2)-x(-1.2),8);tc.fillStyle='rgba(15,139,141,.4)';tc.fillRect(x(Math.log(v.th[k]/v0.th[k])+lo),y,x(hi)-x(lo),8);tc.fillStyle=C.teal;tc.fillRect(x(Math.log(v.th[k]/v0.th[k]))-1,y-3,3,14);tc.fillStyle=C.ink;tc.fillText(['SI','SG','k'][k],0,y+8)});
+const ev=p.events.filter(e=>e.i<=t);$('ev').innerHTML=(ev.length?ev.map(e=>`<div class="alert ${e.new?'ok':''}">${clock(e.i)} – 24-h mean 60-min forecast error shifted ${e.ratio>0?'+':''}${Math.round(e.ratio)} mg/dL → ${e.new?'recalibrated on last 3 days (SI '+(e.new[0]/e.old[0]).toFixed(2)+'×)':'not enough meals to refit'}</div>`).join(''):'<div class="mut">No drift detected up to now. Trigger: |24-h mean forecast-error shift| &gt; 12 mg/dL.</div>');
+}
+function drawStatic(){const p=P(),a=cv($('cA'),220),f=frame(a,0,24,40,Math.max(300,...p.agp.p95),[0,3,6,9,12,15,18,21,24],[70,180,250,300],v=>v+'h'),c=f.c,X=i=>f.X(i/4);
+const band=(lo,hi,col)=>{c.fillStyle=col;c.beginPath();p.agp[lo].forEach((v,i)=>c.lineTo(X(i),f.Y(v)));for(let i=95;i>=0;i--)c.lineTo(X(i),f.Y(p.agp[hi][i]));c.fill()};
+band('p5','p95','rgba(15,139,141,.15)');band('p25','p75','rgba(15,139,141,.3)');c.strokeStyle=C.red;c.setLineDash([4,4]);[70,180].forEach(v=>{c.beginPath();c.moveTo(f.L,f.Y(v));c.lineTo(f.w-f.R,f.Y(v));c.stroke()});c.setLineDash([]);c.strokeStyle=C.teal;c.lineWidth=2;c.beginPath();p.agp.p50.forEach((v,i)=>c.lineTo(X(i),f.Y(v)));c.stroke();
+const T=p.tir,seg=(v,col,l)=>`<div style="flex:${Math.max(v,.5)};background:${col};color:#fff;text-align:center;font-size:11px;padding:2px 0">${v>4?v.toFixed(0)+'%':''}</div>`;
+const ok=(v,c)=>`<b style="color:${c?C.grn:C.red}">${v.toFixed(0)}%</b>`;
+$('tir').innerHTML=`<div style="display:flex;border-radius:6px;overflow:hidden;margin-bottom:8px">${seg(T.low,C.red)}${seg(T.inr,C.grn)}${seg(T.high,C.org)}</div><table><tr><td>Time in range 70–180</td><td>${ok(T.inr,T.inr>=70)}</td></tr><tr><td>Time above 180</td><td>${ok(T.high,T.high<=25)}</td></tr><tr><td>Time below 70</td><td>${ok(T.low,T.low<=4)}</td></tr><tr><td>Mean glucose / GMI</td><td>${T.mean.toFixed(0)} mg/dL / ${T.gmi.toFixed(1)}%</td></tr></table>`}
+function triage(){const L=D.patients.map(p=>({p,r:p.p[t]||0})).sort((a,b)=>b.r-a.r);$('tri').innerHTML=L.map(({p,r})=>`<div class="pt ${p.id===pid?'on':''}" data-id="${p.id}"><span><b>${p.id}</b><div class="mut">HbA1c ${p.static.hba1c??'–'} · TIR ${p.tir.inr.toFixed(0)}%</div></span><span class="pill ${r>.6?'hi':r>.3?'md':'lo'}">${Math.round(r*100)}%</span></div>`).join('');
+document.querySelectorAll('.pt').forEach(e=>e.onclick=()=>{pid=e.dataset.id;sel()})}
+async function whatif(){const p=P(),body={pid,i:t,plans:[{meal:$('mA').value},{meal:$('mB').value,walk_min:$('wk').checked?15:0,walk_offset:30}]};
+const r=await fetch('/api/whatif',{method:'POST',body:JSON.stringify(body)});if(!r.ok)return;const[A,B]=await r.json();
+const o=cv($('cW'),230),f=frame(o,0,180,40,Math.max(300,...A.p95,...B.p95),[0,30,60,90,120,150,180],[70,120,180,240,300],v=>v+'m'),c=f.c;
+const band=(S,col,ln)=>{c.fillStyle=col;c.beginPath();S.p5.forEach((v,i)=>c.lineTo(f.X(i*5),f.Y(v)));for(let i=36;i>=0;i--)c.lineTo(f.X(i*5),f.Y(S.p95[i]));c.fill();c.strokeStyle=ln;c.lineWidth=2;c.beginPath();S.p50.forEach((v,i)=>c.lineTo(f.X(i*5),f.Y(v)));c.stroke()};
+c.strokeStyle=C.red;c.setLineDash([4,4]);c.beginPath();c.moveTo(f.L,f.Y(180));c.lineTo(f.w-f.R,f.Y(180));c.stroke();c.setLineDash([]);band(A,'rgba(224,122,31,.2)',C.org);band(B,'rgba(15,139,141,.22)',C.teal);
+const row=(n,S,col)=>`<tr><td style="color:${col}"><b>${n}</b></td><td>${Math.round(S.peak)} (${Math.round(S.peak_lo)}–${Math.round(S.peak_hi)})</td><td>${S.min_above} min</td><td>${Math.round(S.p_exceed*100)}%</td></tr>`;
+$('wt').innerHTML=`<table><tr><th></th><th>Peak mg/dL (90%)</th><th>Time &gt;180 (median)</th><th>P(peak&gt;180)</th></tr>${row('A: '+$('mA').value,A,C.org)}${row('B: '+$('mB').value+($('wk').checked?' + walk':''),B,C.teal)}</table><b>Predicted peak change B vs A: ${Math.round(B.peak-A.peak)} mg/dL</b>`}
+function sel(){clearTimeout(wiT);const p=P();$('ptn').textContent=p.id;$('pti').textContent=`${p.static.sex||''} ${p.static.age||''}y · BMI ${p.static.bmi||'–'} · waist ${p.static.waist||'–'} cm · ${p.src} data`;$('fhir').href='/api/fhir/'+p.id;drawStatic();triage();draw();whatif()}
+function setT(v){t=v;$('sl').value=v;draw();triage();clearTimeout(wiT);wiT=setTimeout(whatif,350)}
+function val(){const m=D.metrics,H=m.horizons,f=x=>x.toFixed(1),cl=D.counterfactual,e=m.excursion,a=m.alerts,da=m.drift_ablation;
+const hr=Object.entries(H).map(([h,d])=>`<tr><td>${h} min</td>${['pers','lin','ode','hyb'].map(k=>`<td>${f(d[k].rmse)} / ${f(d[k].mae)} <span class="mut">(${d[k].ab.toFixed(1)}% A+B)</span></td>`).join('')}<td>${d.n}</td></tr>`).join('');
+$('val').innerHTML=`<div style="grid-column:1/-1;max-width:1100px;margin:auto"><div class="note"><b>Read this first.</b> ${D.meta.data_note} All numbers below are patient-level, time-ordered: calibrate on days 1–4, test on days 5–10, no future meal logs, threshold chosen on the calibration window. Logged meals are assumed known (a twin that sees meal logs); the <i>meal-rule</i> baseline shows how much of the skill is just “a big meal was logged”.</div>
+<div class="card"><h2>Forecast error, test period (RMSE / MAE mg/dL)</h2><table><tr><th>Horizon</th><th>Persistence</th><th>Linear extrap.</th><th>ODE + UKF</th><th>Hybrid (ODE+UKF+boosted residual, patient-level CV)</th><th>n</th></tr>${hr}</table></div><br>
+<div class="grid"><div class="card c6"><h2>Excursion (&gt;180 within 2 h; scored when now ≤180) — prevalence ${(e.prevalence*100).toFixed(0)}%</h2><table><tr><th>Method</th><th>AUROC</th><th>AUPRC</th></tr>${[['pers','Persistence (current value)'],['lin','Linear extrapolation'],['mealrule','Meal-rule (carbs logged last 2 h)'],['ode','ODE + UKF'],['hyb','Hybrid']].map(([k,n])=>`<tr><td>${n}</td><td>${e[k].auroc.toFixed(3)}</td><td>${e[k].auprc.toFixed(3)}</td></tr>`).join('')}</table><div class="mut">Brier (hybrid) ${m.brier.toFixed(3)}</div></div>
+<div class="card c6"><h2>Alert policy (hybrid), test period</h2><table><tr><td>Threshold (pooled, set on calibration windows)</td><td>${a.thr.toFixed(2)}</td></tr><tr><td>Alerts / patient-day</td><td>${a.alerts_per_day.toFixed(1)}</td></tr><tr><td>False alerts / patient-day</td><td>${a.false_per_day.toFixed(1)}</td></tr><tr><td>Excursions warned (alert ≤2 h before the crossing of 180)</td><td>${(a.sensitivity*100).toFixed(0)}% of ${a.events}</td></tr><tr><td>…with ≥15 min warning</td><td>${(a.sensitivity_15min*100).toFixed(0)}%</td></tr><tr><td>Median / mean lead time</td><td>${a.median_lead_min} / ${a.mean_lead_min.toFixed(0)} min</td></tr></table><details><summary class="mut">Operating curve (threshold trade-off)</summary><table><tr><th>Thr</th><th>False/day</th><th>Warned</th><th>≥15 min</th><th>Median lead</th></tr>${a.curve.map(c=>`<tr><td>${c.thr.toFixed(1)}</td><td>${c.false_per_day.toFixed(1)}</td><td>${(c.sensitivity*100).toFixed(0)}%</td><td>${(c.sensitivity_15min*100).toFixed(0)}%</td><td>${c.median_lead_min} min</td></tr>`).join('')}</table></details><div class="mut">Lead is capped by the 2-h horizon. Earlier numbers (5 min) came from noisy per-patient thresholds and from averaging over repeat alerts; this is per excursion.</div></div>
+<div class="card c6"><h2>Reliability (hybrid P vs observed)</h2><canvas id="cR" height="200"></canvas></div>
+<div class="card c6"><h2>Drift &amp; closed-loop checks (synthetic ground truth)</h2>${da?`<p>Patients with a sudden insulin-sensitivity drop at day 7 (${da.patients.join(', ')}): 60-min RMSE after drift <b>${f(da.rmse60_after_drift_with_recal)}</b> with drift-triggered recalibration vs <b>${f(da.rmse60_after_drift_without)}</b> without (${da.recalibrations} recalibrations).</p>`:''}${cl?`<p>Counterfactual: twin-predicted effect of a 15-min post-dinner walk on 3-h peak = <b>${f(cl.mean_twin)}</b> mg/dL vs generator truth <b>${f(cl.mean_true)}</b> (MAE ${f(cl.mae)}, r=${cl.corr==null?'–':cl.corr.toFixed(2)}, n=${cl.n}). The twin gets the direction right and over-states the size — KEX is an assumption.</p>`:''}</div></div><br>
+<div class="card"><h2>Per-patient 60-min RMSE (hybrid vs persistence)</h2><table><tr><th>Patient</th>${Object.keys(m.per_patient).map(k=>`<th>${k}</th>`).join('')}</tr><tr><td>Hybrid</td>${Object.values(m.per_patient).map(v=>`<td>${f(v.rmse60_hyb)}</td>`).join('')}</tr><tr><td>Persistence</td>${Object.values(m.per_patient).map(v=>`<td>${f(v.rmse60_pers)}</td>`).join('')}</tr></table></div>${m.external?(()=>{const X=m.external,xe=X.excursion;return`<br><div class="card"><h2>External validation: ShanghaiT2DM (${X.n_patients} patients, China, Libre 15-min) — CGMacros-trained components frozen</h2><div class="note">${X.note} Only per-patient ODE parameters are fitted on each patient's first 3 days. <b>Transfer model:</b> residual gradient-boosting trained on CGMacros Libre-15-min data (all days, no activity/HbA1c features), selected by leave-patients-out CV on CGMacros only; Shanghai evaluated once for it. Our first attempt (Dexcom-trained ridge, 60-min RMSE ${f(X.v1_ridge.horizons['60'].hyb.rmse)}, AUROC ${X.v1_ridge.excursion.hyb.auroc.toFixed(3)}) barely beat persistence — the gain came from matching cadence/sensor and dropping features Shanghai lacks. Clarke A+B at 60 min is ~equal to persistence, so the clinical-safety gain is not shown.</div><table><tr><th>Horizon</th><th>Persistence</th><th>Linear extrap.</th><th>ODE + UKF</th><th>Hybrid</th></tr>${Object.entries(X.horizons).map(([h,d])=>`<tr><td>${h} min</td>${['pers','lin','ode','hyb'].map(k=>`<td>${f(d[k].rmse)} / ${f(d[k].mae)}</td>`).join('')}</tr>`).join('')}</table><p>Excursion AUROC (prevalence ${(xe.prevalence*100).toFixed(0)}%): persistence ${xe.pers.auroc.toFixed(3)} · linear ${xe.lin.auroc.toFixed(3)} · meal-rule ${xe.mealrule.auroc.toFixed(3)} · ODE ${xe.ode.auroc.toFixed(3)} · hybrid ${xe.hyb.auroc.toFixed(3)}. Alerts: ${X.alerts.false_per_day.toFixed(1)} false/patient-day, ${(X.alerts.sensitivity*100).toFixed(0)}% of excursions warned (${(X.alerts.sensitivity_15min*100).toFixed(0)}% with ≥15 min), median lead ${X.alerts.median_lead_min} min.</p></div>`})():''}</div>`;
+const o=cv($('cR'),200),fr=frame(o,0,1,0,1,[0,.25,.5,.75,1],[0,.25,.5,.75,1]),c=fr.c;c.strokeStyle=C.g;c.beginPath();c.moveTo(fr.X(0),fr.Y(0));c.lineTo(fr.X(1),fr.Y(1));c.stroke();c.strokeStyle=C.teal;c.fillStyle=C.teal;c.lineWidth=2;c.beginPath();m.reliability.forEach(r=>c.lineTo(fr.X(r.p),fr.Y(r.obs)));c.stroke();m.reliability.forEach(r=>{c.beginPath();c.arc(fr.X(r.p),fr.Y(r.obs),3,0,7);c.fill()})}
+function why(){const R=[['State','Static feature vector per window','Explicit latent state [G, insulin action, gut pools] updated by a UKF at every reading'],['Personalisation','One global model','Per-patient SI, SG, k fitted from days 1–4 with HbA1c-informed prior; posterior width shown'],['Bidirectional','Outputs a risk score','Recommend → simulate response → monitor 60-min forecast error → drift-triggered recalibration (demo: patients P03, P08, P11)'],['What-if','Slider re-runs a classifier','Meal/walk enter the ODE as inputs; trajectory changes for mechanistic reasons; bands from parameter posterior'],['Validation','Random-split accuracy','Patient-level, time-ordered, baselines incl. persistence & meal-rule, error grid, alerts/day, calibration']];
+$('why').innerHTML=`<div style="grid-column:1/-1;max-width:1000px;margin:auto" class="card"><h2>What makes this a twin, not a classifier</h2><table><tr><th>Test</th><th>Relabeled classifier</th><th>This prototype</th></tr>${R.map(r=>`<tr><td><b>${r[0]}</b></td><td style="text-align:left">${r[1]}</td><td style="text-align:left">✔ ${r[2]}</td></tr>`).join('')}</table>
+<div class="note"><b>Not yet a twin:</b> real-data validation (CGMacros / ShanghaiT2DM loader written but untested on the real files), no insulin/medication input, no Indian CGM data (priors are hypotheses), ML residual not re-trained after recalibration, intended use = lifestyle decision support reviewed by a clinician (not diagnosis or dosing). Clinical review pending.</div></div>`}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));['clin','val','why'].forEach(k=>{$(k).style.display=k===b.dataset.t?(k==='clin'?'grid':'block'):'none'});if(b.dataset.t==='val')val();if(b.dataset.t==='why')why();if(b.dataset.t==='clin')sel()});
+$('play').onclick=()=>{if(timer){clearInterval(timer);timer=null;$('play').textContent='▶ Replay';return}$('play').textContent='❚❚ Pause';timer=setInterval(()=>{if(t>=D.meta.n-26){$('play').click();return}setT(t+2)},120)};
+$('sl').oninput=e=>setT(+e.target.value);$('go').onclick=whatif;['mA','mB','wk'].forEach(k=>$(k).onchange=whatif);
+let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>D&&sel(),200)});
+fetch('/api/results').then(r=>r.json()).then(d=>{D=d;$('dn').textContent=d.patients[0].src==='cgmacros'?'REAL DATA: CGMacros (n='+d.patients.length+') – research prototype, not clinical':'SYNTHETIC DATA – stress-test prototype, not clinical evidence';const names=Object.keys(d.meta.meals);
+$('mA').innerHTML=names.map(n=>`<option>${n}</option>`).join('');$('mB').innerHTML=$('mA').innerHTML;$('mA').value='White rice 1 cup + dal + sabzi';$('mB').value='Ragi roti x2 + dal';
+$('sl').min=d.meta.cal_end+12;$('sl').max=d.meta.n-26;pid=d.patients[0].id;t=d.meta.cal_end+12*20;$('sl').value=t;sel()});
+</script></body></html>

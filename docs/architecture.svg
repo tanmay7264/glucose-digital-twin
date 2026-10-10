@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1040" width="1600" height="1040" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5a6b85"/></marker></defs>
+<rect width="1600" height="1040" fill="#f6f7f9"/>
+<text x="30" y="40" font-size="24" font-weight="800" fill="#1c2430">Glucose Digital Twin: architecture</text>
+<text x="30" y="62" font-size="13" fill="#6b7686">T2D / prediabetes post-meal excursion twin. Mechanistic core + UKF state estimation + boosted ML residual. Decision support for lifestyle, reviewed by a clinician.</text>
+<rect x="20" y="80" width="1560" height="150" rx="14" fill="#e8eef7" opacity="0.55"/>
+<text x="1566" y="102" font-size="13" font-weight="700" fill="#5a6b85" letter-spacing="1" text-anchor="end">1  DATA IN</text>
+<rect x="40" y="112" width="270" height="105" rx="10" fill="#fff" stroke="#9aa7b8" stroke-width="1.5"/>
+<text x="52" y="134" font-size="15" font-weight="700" fill="#1c2430">CGMacros (PhysioNet)</text>
+<text x="52" y="154" font-size="12.5" fill="#46515f">Dexcom G6 + Libre, meal macros,</text>
+<text x="52" y="171" font-size="12.5" fill="#46515f">Fitbit METs, HbA1c. 29 pts, HbA1c &gt;= 5.7</text>
+<text x="52" y="188" font-size="12.5" fill="#46515f">Development + training  (CC BY-NC-SA)</text>
+<rect x="330" y="112" width="270" height="105" rx="10" fill="#fff" stroke="#9aa7b8" stroke-width="1.5"/>
+<text x="342" y="134" font-size="15" font-weight="700" fill="#1c2430">ShanghaiT2DM (figshare)</text>
+<text x="342" y="154" font-size="12.5" fill="#46515f">15-min Libre, free-text diet logs</text>
+<text x="342" y="171" font-size="12.5" fill="#46515f">38 non-insulin T2D patients</text>
+<text x="342" y="188" font-size="12.5" fill="#46515f">EXTERNAL validation only (CC BY 4.0)</text>
+<rect x="620" y="112" width="250" height="105" rx="10" fill="#fff7ec" stroke="#e0b27a" stroke-width="1.5"/>
+<text x="632" y="134" font-size="15" font-weight="700" fill="#1c2430">Synthetic generator</text>
+<text x="632" y="154" font-size="12.5" fill="#46515f">Structurally different from the twin</text>
+<text x="632" y="171" font-size="12.5" fill="#46515f">Stress tests + counterfactual check</text>
+<text x="632" y="188" font-size="12.5" fill="#46515f">Never a headline number</text>
+<rect x="890" y="112" width="300" height="105" rx="10" fill="#fff" stroke="#9aa7b8" stroke-width="1.5"/>
+<text x="902" y="134" font-size="15" font-weight="700" fill="#1c2430">Static / clinical context</text>
+<text x="902" y="154" font-size="12.5" fill="#46515f">HbA1c, age, BMI (prior on insulin</text>
+<text x="902" y="171" font-size="12.5" fill="#46515f">sensitivity); Indian meal library</text>
+<text x="902" y="188" font-size="12.5" fill="#46515f">(18 items, carbs + slow fraction)</text>
+<rect x="1210" y="112" width="350" height="105" rx="10" fill="#f1faf6" stroke="#7cc6a0" stroke-width="1.5"/>
+<text x="1222" y="134" font-size="15" font-weight="700" fill="#1c2430">Interoperability (mock / roadmap)</text>
+<text x="1222" y="154" font-size="12.5" fill="#46515f">FHIR R4 Bundle out (LOINC 4548-4, 2339-0,</text>
+<text x="1222" y="171" font-size="12.5" fill="#46515f">ICD-10 E11).  ABHA / ABDM consented pull:</text>
+<text x="1222" y="188" font-size="12.5" fill="#46515f">architecture only, no real PHI</text>
+<rect x="20" y="245" width="1560" height="105" rx="14" fill="#eef1f6" opacity="0.55"/>
+<text x="1566" y="267" font-size="13" font-weight="700" fill="#5a6b85" letter-spacing="1" text-anchor="end">2  INGESTION (twin/data.py)</text>
+<rect x="40" y="275" width="1520" height="62" rx="10" fill="#fff" stroke="#9aa7b8" stroke-width="1.5"/>
+<text x="52" y="297" font-size="15" font-weight="700" fill="#1c2430">Align to a 5-min grid  |  15-min Libre linearly interpolated (gaps &gt; 45 min stay missing)  |  meal text/macros to carbs + slow-absorption fraction</text>
+<text x="52" y="317" font-size="12.5" fill="#46515f">Activity: METs to steps/min proxy (CGMacros) or none (Shanghai).  Future meal logs are never used as features (leakage guard).</text>
+<rect x="20" y="365" width="1560" height="385" rx="14" fill="#e6f4f4" opacity="0.55"/>
+<text x="1566" y="387" font-size="13" font-weight="700" fill="#5a6b85" letter-spacing="1" text-anchor="end">3  TWIN ENGINE (twin/model.py, twin/pipeline.py)</text>
+<rect x="40" y="398" width="300" height="150" rx="10" fill="#fff" stroke="#0f8b8d" stroke-width="1.5"/>
+<text x="52" y="420" font-size="15" font-weight="700" fill="#1c2430">A  Calibrate (per patient)</text>
+<text x="52" y="440" font-size="12.5" fill="#46515f">Bergman-style minimal model + 2-pool gut</text>
+<text x="52" y="457" font-size="12.5" fill="#46515f">State [G, X, F1, F2, S1, S2]</text>
+<text x="52" y="474" font-size="12.5" fill="#46515f">Fit SI, SG, k on 4-h post-meal segments</text>
+<text x="52" y="491" font-size="12.5" fill="#46515f">Empirical-Bayes prior (cohort + HbA1c)</text>
+<text x="52" y="508" font-size="12.5" fill="#46515f">Posterior covariance kept</text>
+<rect x="375" y="398" width="300" height="150" rx="10" fill="#fff" stroke="#0f8b8d" stroke-width="1.5"/>
+<text x="387" y="420" font-size="15" font-weight="700" fill="#1c2430">B  Assimilate (online)</text>
+<text x="387" y="440" font-size="12.5" fill="#46515f">Unscented Kalman filter, 1 step / reading</text>
+<text x="387" y="457" font-size="12.5" fill="#46515f">Meal log = known input + 25% size</text>
+<text x="387" y="474" font-size="12.5" fill="#46515f">uncertainty. Fills sensor gaps; the</text>
+<text x="387" y="491" font-size="12.5" fill="#46515f">twin state updates at every sample</text>
+<rect x="710" y="398" width="300" height="150" rx="10" fill="#fff" stroke="#0f8b8d" stroke-width="1.5"/>
+<text x="722" y="420" font-size="15" font-weight="700" fill="#1c2430">C  Forecast + risk</text>
+<text x="722" y="440" font-size="12.5" fill="#46515f">ODE roll-out 30 / 60 / 120 min</text>
+<text x="722" y="457" font-size="12.5" fill="#46515f">+ gradient-boosted residual (patient-</text>
+<text x="722" y="474" font-size="12.5" fill="#46515f">level CV, pooled across patients)</text>
+<text x="722" y="491" font-size="12.5" fill="#46515f">P(glucose &gt; 180 within 2 h) with</text>
+<text x="722" y="508" font-size="12.5" fill="#46515f">empirical per-horizon uncertainty</text>
+<rect x="1045" y="398" width="240" height="150" rx="10" fill="#fff" stroke="#0f8b8d" stroke-width="1.5"/>
+<text x="1057" y="420" font-size="15" font-weight="700" fill="#1c2430">D  Alert policy</text>
+<text x="1057" y="440" font-size="12.5" fill="#46515f">One pooled threshold, set on</text>
+<text x="1057" y="457" font-size="12.5" fill="#46515f">calibration windows for</text>
+<text x="1057" y="474" font-size="12.5" fill="#46515f">&lt;= 2 false alerts / patient-day</text>
+<text x="1057" y="491" font-size="12.5" fill="#46515f">Per-excursion lead time</text>
+<rect x="1320" y="398" width="240" height="150" rx="10" fill="#fff" stroke="#0f8b8d" stroke-width="1.5"/>
+<text x="1332" y="420" font-size="15" font-weight="700" fill="#1c2430">E  What-if simulator</text>
+<text x="1332" y="440" font-size="12.5" fill="#46515f">Meal swap / post-meal walk are</text>
+<text x="1332" y="457" font-size="12.5" fill="#46515f">ODE inputs, re-simulated with</text>
+<text x="1332" y="474" font-size="12.5" fill="#46515f">60 posterior samples + portion</text>
+<text x="1332" y="491" font-size="12.5" fill="#46515f">noise: bands, not point guesses</text>
+<rect x="40" y="580" width="640" height="150" rx="10" fill="#fff" stroke="#c9372c" stroke-width="1.5"/>
+<text x="52" y="602" font-size="15" font-weight="700" fill="#1c2430">F  Drift monitor and recalibration loop (bidirectional)</text>
+<text x="52" y="622" font-size="12.5" fill="#46515f">24-h mean of the 60-min forecast error vs calibration window;</text>
+<text x="52" y="639" font-size="12.5" fill="#46515f">shift &gt; 20 mg/dL triggers a refit on the last 3 days, prior = current</text>
+<text x="52" y="656" font-size="12.5" fill="#46515f">parameters. Closed loop: recommend, simulated / observed response,</text>
+<text x="52" y="673" font-size="12.5" fill="#46515f">compare forecast vs outcome, recalibrate.  Counterfactual check on</text>
+<text x="52" y="690" font-size="12.5" fill="#46515f">synthetic truth: walk effect direction right, size over-stated.</text>
+<rect x="710" y="580" width="850" height="150" rx="10" fill="#fff" stroke="#7a5bd1" stroke-width="1.5"/>
+<text x="722" y="602" font-size="15" font-weight="700" fill="#1c2430">G  Evaluation harness (patient-level, time-ordered)</text>
+<text x="722" y="622" font-size="12.5" fill="#46515f">Baselines: persistence, linear extrapolation, ODE+UKF only, meal-rule.  Metrics: RMSE/MAE at 30/60/120 min, Clarke error grid,</text>
+<text x="722" y="639" font-size="12.5" fill="#46515f">AUROC / AUPRC, Brier + reliability, alerts per day, sensitivity, lead time, drift ablation.</text>
+<text x="722" y="656" font-size="12.5" fill="#46515f">Internal: CGMacros, 5-fold by patient.  External: Shanghai with the CGMacros-trained pieces frozen</text>
+<text x="722" y="673" font-size="12.5" fill="#46515f">(Libre-15-min-trained residual, no steps / HbA1c features); only per-patient ODE parameters are fitted.</text>
+<text x="722" y="690" font-size="12.5" fill="#46515f">Calibrate on first 3-4 days, test on the rest. Synthetic data is never the headline.</text>
+<rect x="20" y="765" width="1560" height="195" rx="14" fill="#eef1f6" opacity="0.55"/>
+<text x="1566" y="787" font-size="13" font-weight="700" fill="#5a6b85" letter-spacing="1" text-anchor="end">4  SERVING AND CLINICIAN UI</text>
+<rect x="40" y="797" width="330" height="150" rx="10" fill="#fff" stroke="#9aa7b8" stroke-width="1.5"/>
+<text x="52" y="819" font-size="15" font-weight="700" fill="#1c2430">Stdlib HTTP server (twin/server.py)</text>
+<text x="52" y="839" font-size="12.5" fill="#46515f">GET /api/results   precomputed twin + metrics</text>
+<text x="52" y="856" font-size="12.5" fill="#46515f">POST /api/whatif   live ODE re-simulation</text>
+<text x="52" y="873" font-size="12.5" fill="#46515f">GET /api/fhir/&lt;id&gt;   FHIR Bundle</text>
+<text x="52" y="890" font-size="12.5" fill="#46515f">Static: dashboard, three.js (vendored)</text>
+<rect x="400" y="797" width="1160" height="150" rx="10" fill="#fff" stroke="#9aa7b8" stroke-width="1.5"/>
+<text x="412" y="819" font-size="15" font-weight="700" fill="#1c2430">Dashboard (web/index.html, web/human.js)</text>
+<text x="412" y="839" font-size="12.5" fill="#46515f">Triage list ranked by 2-h risk   |   Forecast cone with the real outcome revealed in replay   |   Risk, alert feed, mechanistic drivers of the 60-min forecast</text>
+<text x="412" y="856" font-size="12.5" fill="#46515f">What-if: Indian meal A vs B (+ walk) with uncertainty bands   |   Twin state: SI / SG / k with 95% CI + drift events   |   AGP + time-in-range vs consensus targets</text>
+<text x="412" y="873" font-size="12.5" fill="#46515f">Validation tab: baselines, external Shanghai table, alert operating curve, reliability, per-patient table   |   'Twin vs classifier' checklist</text>
+<text x="412" y="890" font-size="12.5" fill="#46515f">3D physical twin: clothed figure walks / eats / sleeps from logged activity; CGM patch and floor ring show glucose zone; X-ray mode shows organs</text>
+<text x="412" y="907" font-size="12.5" fill="#46515f">driven by model state (stomach = carbs on board, pancreas = insulin action).  WebGL failure falls back to a 2D figure.</text>
+<rect x="20" y="975" width="1560" height="50" rx="10" fill="#fff8e6" stroke="#f0dc9a"/>
+<text x="34" y="996" font-size="12.5" font-weight="700" fill="#7a5a00">Governance</text>
+<text x="120" y="996" font-size="12.5" fill="#5c4a14">Intended use: lifestyle decision support reviewed by a clinician; no diagnosis, no insulin dosing. CDSCO draft MDSW (Oct 2025): plausibly Class B (hypothesis).</text>
+<text x="120" y="1014" font-size="12.5" fill="#5c4a14">DPDP: public / synthetic data only here. Production: consent notice, ABDM consent artefact, store twin parameters not raw streams, erase on withdrawal. No Indian CGM data exists in this work; India-specific priors are labelled assumptions.</text>
+<path d="M175,217 L175,275" stroke="#5a6b85" stroke-width="2" fill="none" marker-end="url(#a)"/>
+<path d="M465,217 L465,275" stroke="#5a6b85" stroke-width="2" fill="none" marker-end="url(#a)"/>
+<path d="M745,217 L745,275" stroke="#5a6b85" stroke-width="2" fill="none" marker-end="url(#a)"/>
+<path d="M1040,217 L1040,275" stroke="#5a6b85" stroke-width="2" fill="none" marker-end="url(#a)"/>
+<path d="M1270,217 L1270,275" stroke="#5a6b85" stroke-width="2" fill="none" marker-end="url(#a)" stroke-dasharray="6 4"/>
+<text x="1304.0" y="240.0" font-size="11.5" fill="#5a6b85" text-anchor="middle">FHIR in/out</text>
+<path d="M190,337 L190,398" stroke="#5a6b85" stroke-width="2" fill="none" marker-end="url(#a)"/>
+<path d="M525,337 L525,398" stroke="#5a6b85" stroke-width="2" fill="none" marker-end="url(#a)"/>
+<path d="M340,473 L375,473" stroke="#5a6b85" stroke-width="2" fill="none" marker-end="url(#a)"/>
+<text x="357.5" y="467.0" font-size="11.5" fill="#5a6b85" text-anchor="middle">theta</text>
+<path d="M675,473 L710,473" stroke="#5a6b85" stroke-width="2" fill="none" marker-end="url(#a)"/>
+<text x="692.5" y="467.0" font-size="11.5" fill="#5a6b85" text-anchor="middle">state</text>
+<path d="M1010,473 L1045,473" stroke="#5a6b85" stroke-width="2" fill="none" marker-end="url(#a)"/>
+<text x="1027.5" y="467.0" font-size="11.5" fill="#5a6b85" text-anchor="middle">P</text>
+<path d="M1285,473 L1320,473" stroke="#5a6b85" stroke-width="2" fill="none" marker-end="url(#a)"/>
+<path d="M525,580 L525,548" stroke="#c9372c" stroke-width="2" fill="none" marker-end="url(#a)"/>
+<path d="M190,548 L190,580" stroke="#c9372c" stroke-width="2" fill="none" marker-end="url(#a)"/>
+<text x="168.0" y="558.0" font-size="11.5" fill="#c9372c" text-anchor="middle">refit</text>
+<path d="M860,548 L860,580" stroke="#7a5bd1" stroke-width="2" fill="none" marker-end="url(#a)"/>
+<path d="M1100,548 L1100,580" stroke="#7a5bd1" stroke-width="2" fill="none" marker-end="url(#a)"/>
+<path d="M205,730 L205,797" stroke="#5a6b85" stroke-width="2" fill="none" marker-end="url(#a)"/>
+<path d="M980,730 L980,797" stroke="#5a6b85" stroke-width="2" fill="none" marker-end="url(#a)"/>
+<path d="M370,872 L400,872" stroke="#5a6b85" stroke-width="2" fill="none" marker-end="url(#a)"/>
+</svg>

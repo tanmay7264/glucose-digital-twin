@@ -1,0 +1,5 @@
+numpy
+scipy
+scikit-learn
+xlrd        # ShanghaiT2DM .xls
+openpyxl    # ShanghaiT2DM .xlsx
