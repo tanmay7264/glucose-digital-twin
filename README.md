@@ -3,6 +3,8 @@
 Happiest Health Digital Twin Challenge 2026 submission.
 
 **Team / college:** Tanmay Narnaware · _[college, department, year, team members and clinical advisor: fill in before submitting]_
+**Live dashboard:** <https://glucose-digital-twin.onrender.com> (Render free tier: the first visit after idle takes 30-60 s to wake)
+**Live city demo:** <https://tanmay7264.github.io/twin-nagar/> ([code](https://github.com/tanmay7264/twin-nagar)): the twin living a day in a 3D city, with a Twin Lab for trying meal and walk changes
 **Architecture diagram:** [docs/architecture.pdf](docs/architecture.pdf) (source: [docs/architecture.svg](docs/architecture.svg))
 **Video:** _[link]_ · **Deck:** _[link]_ · **License:** MIT (code), see [LICENSE](LICENSE) for dataset licenses
 
