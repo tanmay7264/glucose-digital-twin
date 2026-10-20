@@ -3,7 +3,6 @@
 Happiest Health Digital Twin Challenge 2026 submission.
 
 **Team / college:** Tanmay Narnaware · _[college, department, year, team members and clinical advisor: fill in before submitting]_
-**Live dashboard:** <https://glucose-digital-twin.onrender.com> (Render free tier: the first visit after idle takes 30-60 s to wake)
 **Live city demo:** <https://tanmay7264.github.io/twin-nagar/> ([code](https://github.com/tanmay7264/twin-nagar)): the twin living a day in a 3D city, with a Twin Lab for trying meal and walk changes
 **Architecture diagram:** [docs/architecture.pdf](docs/architecture.pdf) (source: [docs/architecture.svg](docs/architecture.svg))
 **Video:** _[link]_ · **Deck:** _[link]_ · **License:** MIT (code), see [LICENSE](LICENSE) for dataset licenses
@@ -31,6 +30,31 @@ Intended use is lifestyle decision support reviewed by a clinician. It does not 
 | Validation | random-split accuracy | patient-level, time-ordered, baselines, error grid, external dataset, alerts per day |
 
 Boxes it does **not** tick yet are listed under [Limitations](#limitations).
+
+### City demo: scenarios the twin guards against
+
+The [city demo](https://tanmay7264.github.io/twin-nagar/) runs the same ODE in the browser with Asha's parameters (CGMacros participant C049).
+It plays a week of themed days, then four ★ special days, and rolls on to the next day automatically. On each day something goes wrong, and a "twin guard" compares the CGM with what the logged meals explain, names the cause and acts.
+
+| Day | What goes wrong |
+|---|---|
+| Mon | nothing (control day) |
+| Tue to Sun | under-logged pastry; double festival lunch and unlogged prasad; deadline stress and a desk pizza; movie popcorn and midnight chips; wedding buffet and a false sensor low; a sick day |
+| ★ Heatwave & dehydration | at 41°C with one glass of water, plasma water loss concentrates glucose; high glucose adds osmotic water loss |
+| ★ Caffeine overload | four strong black coffees lower insulin sensitivity, so the usual lunch spikes higher |
+| ★ Heavy exercise | during HIIT and heavy lifting, adrenaline releases liver glucose, so glucose rises during the workout |
+| ★ Late & stuck in traffic | stress hormones (adrenaline, cortisol) raise glucose with no food at all |
+
+For the four ★ days the guard uses context a real twin could see: the weather feed, logged coffee, wearable heart rate and phone GPS speed. Without it, it would have called all four "illness". Minutes above 180 mg/dL, no twin → twin:
+
+| Scenario | No twin → twin |
+|---|---|
+| Heat | 1095 → 881 |
+| Caffeine | 880 → 687 |
+| Heavy exercise | 686 → 670 |
+| Traffic stress | 719 → 604 |
+
+The sizes of the heat, caffeine, exercise and stress effects are assumptions, not fitted to data. The demo is a simulation for illustration and not part of the validated results below.
 
 ## Quick start
 
